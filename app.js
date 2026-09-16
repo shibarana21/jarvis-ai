@@ -1,161 +1,94 @@
+const STORAGE_KEY = "jarvis_conversations_v1";
+const messagesElement = document.getElementById("messages");
+const chatListElement = document.getElementById("chatList");
+const messageForm = document.getElementById("messageForm");
+const messageInput = document.getElementById("messageInput");
+const loadingIndicator = document.getElementById("loadingIndicator");
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+const voiceStatus = document.getElementById("voiceStatus");
+
+let conversations = loadConversations();
+let activeConversationId = null;
+
+function loadConversations() {
+  try {
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    return savedData ? JSON.parse(savedData) : [];
+  } catch (e) { return []; }
+}
+
+function saveConversations() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+}
+
+function renderMessages() {
+  const conversation = conversations.find(c => c.id === activeConversationId);
+  if (!conversation || conversation.messages.length === 0) {
+    messagesElement.innerHTML = `
+      <div class="welcome-card">
+        <div class="core">J</div>
+        <h2>JARVIS Ready</h2>
+        <p>Main online hoon. Mujhse kuch bhi puchiye.</p>
+      </div>`;
+    return;
+  }
+  messagesElement.innerHTML = conversation.messages.map(m => `
+    <div class="message-row ${m.role}">
+      <div class="message-bubble">
+        <div class="message-label">${m.role === 'user' ? 'YOU' : 'JARVIS'}</div>
+        ${m.content}
+      </div>
+    </div>`).join("");
+  messagesElement.scrollTop = messagesElement.scrollHeight;
+}
+
 async function handleSubmit(event) {
   event.preventDefault();
-  const message = messageInput.value.trim();
-  if (!message) return;
+  const content = messageInput.value.trim();
+  if (!content) return;
 
-  addMessage("user", message);
+  const conv = conversations.find(c => c.id === activeConversationId);
+  conv.messages.push({ role: "user", content });
   messageInput.value = "";
-  showLoading(true);
+  renderMessages();
+  
+  loadingIndicator.classList.remove("hidden");
+  voiceStatus.innerText = "JARVIS is thinking...";
 
   try {
-    const activeConv = getActiveConversation();
-    
-    // Hamare backend bridge ko call karein
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: activeConv.messages })
+      body: JSON.stringify({ messages: conv.messages })
     });
-
     const data = await response.json();
-    
     if (data.error) throw new Error(data.error);
     
-    addMessage("assistant", data.content);
-  } catch (error) {
-    addMessage("assistant", "Maaf kijiye, connection mein problem hai: " + error.message);
+    conv.messages.push({ role: "assistant", content: data.content });
+    voiceStatus.innerText = "JARVIS Online";
+  } catch (err) {
+    conv.messages.push({ role: "assistant", content: "Error: " + err.message });
+    voiceStatus.innerText = "Connection Error";
   } finally {
-    showLoading(false);
+    loadingIndicator.classList.add("hidden");
+    saveConversations();
+    renderMessages();
   }
-}  }
+}
 
-  conversations = conversations.filter(item => item.id !== id);
-
-  if (activeConversationId === id) {
-    activeConversationId = conversations[0]?.id || null;
-  }
-
+// Basic Setup
+function startNewChat() {
+  const id = Date.now().toString();
+  conversations.unshift({ id, title: "New Chat", messages: [] });
+  activeConversationId = id;
   saveConversations();
-
-  if (conversations.length === 0) {
-    createNewChat();
-    return;
-  }
-
-  renderApp();
-}
-
-function addMessage(role, content) {
-  const conversation = getActiveConversation();
-
-  if (!conversation) {
-    return;
-  }
-
-  conversation.messages.push({
-    id: createId(),
-    role,
-    content,
-    createdAt: Date.now()
-  });
-
-  if (
-    role === "user" &&
-    conversation.title === "New Conversation"
-  ) {
-    conversation.title =
-      content.length > 32
-        ? `${content.slice(0, 32)}...`
-        : content;
-  }
-
-  saveConversations();
-  renderApp();
-}
-
-function showLoading(show) {
-  loadingIndicator.classList.toggle("hidden", !show);
-}
-
-async function handleSubmit(event) {
-  event.preventDefault();
-
-  const message = messageInput.value.trim();
-
-  if (!message) {
-    alert("कृपया पहले कोई message लिखें।");
-    return;
-  }
-
-  addMessage("user", message);
-
-  messageInput.value = "";
-  messageInput.style.height = "44px";
-
-  showLoading(true);
-
-  await new Promise(resolve => setTimeout(resolve, 700));
-
-  showLoading(false);
-
-  addMessage(
-    "assistant",
-    "UI test successful. आपका message local chat history में save हो गया है। Gemini AI अभी connected नहीं है।"
-  );
-}
-
-function openSidebar() {
-  sidebar.classList.add("open");
-  sidebarOverlay.classList.add("open");
-}
-
-function closeSidebar() {
-  sidebar.classList.remove("open");
-  sidebarOverlay.classList.remove("open");
+  renderMessages();
 }
 
 messageForm.addEventListener("submit", handleSubmit);
+document.getElementById("newChatButton").addEventListener("click", startNewChat);
 
-messageInput.addEventListener("input", () => {
-  messageInput.style.height = "44px";
-  messageInput.style.height =
-    `${Math.min(messageInput.scrollHeight, 120)}px`;
-});
-
-document
-  .getElementById("menuButton")
-  .addEventListener("click", openSidebar);
-
-document
-  .getElementById("closeSidebarButton")
-  .addEventListener("click", closeSidebar);
-
-sidebarOverlay.addEventListener("click", closeSidebar);
-
-document
-  .getElementById("newChatButton")
-  .addEventListener("click", createNewChat);
-
-document
-  .getElementById("sidebarNewChatButton")
-  .addEventListener("click", createNewChat);
-
-chatListElement.addEventListener("click", event => {
-  const openButton = event.target.closest("[data-open-chat]");
-  const deleteButton = event.target.closest("[data-delete-chat]");
-
-  if (openButton) {
-    openConversation(openButton.dataset.openChat);
-  }
-
-  if (deleteButton) {
-    deleteConversation(deleteButton.dataset.deleteChat);
-  }
-});
-
-if (conversations.length === 0) {
-  createNewChat();
-} else {
-  activeConversationId = conversations[0].id;
-  renderApp();
-}
+// Initialize
+if (conversations.length === 0) startNewChat();
+else { activeConversationId = conversations[0].id; renderMessages(); }
