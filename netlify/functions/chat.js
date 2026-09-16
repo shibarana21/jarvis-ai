@@ -1,9 +1,4 @@
-
-// netlify/functions/chat.js
-const fetch = require('node-fetch');
-
 exports.handler = async (event) => {
-  // Security: Sirf POST requests allow karein
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
@@ -12,7 +7,6 @@ exports.handler = async (event) => {
     const { messages } = JSON.parse(event.body);
     const API_KEY = process.env.GEMINI_API_KEY;
 
-    // Gemini API calling logic
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -28,6 +22,11 @@ exports.handler = async (event) => {
     });
 
     const data = await response.json();
+
+    if (!data.candidates || !data.candidates[0]) {
+      throw new Error(data.error?.message || "Gemini API Error");
+    }
+
     const aiMessage = data.candidates[0].content.parts[0].text;
 
     return {
@@ -35,6 +34,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ content: aiMessage })
     };
   } catch (error) {
+    console.error("Error:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: "JARVIS error: " + error.message })
