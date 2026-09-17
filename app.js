@@ -1,6 +1,8 @@
 const STORAGE_KEY = "jarvis_conversations_v1";
 const USER_API_KEY_STORAGE = "jarvis_user_api_key";
 const USER_PROVIDER_STORAGE = "jarvis_user_provider";
+const USER_MODEL_STORAGE = "jarvis_user_model";
+const USER_CUSTOM_ENDPOINT_STORAGE = "jarvis_custom_endpoint";
 
 const messagesElement = document.getElementById("messages");
 const chatListElement = document.getElementById("chatList");
@@ -16,10 +18,15 @@ const langToggleButton = document.getElementById("langToggleButton");
 const settingsButton = document.getElementById("settingsButton");
 const settingsPanel = document.getElementById("settingsPanel");
 const apiKeyInput = document.getElementById("apiKeyInput");
+const modelInput = document.getElementById("modelInput");
 const providerSelect = document.getElementById("providerSelect");
+const customFields = document.getElementById("customFields");
+const customEndpointInput = document.getElementById("customEndpointInput");
 const saveApiKeyButton = document.getElementById("saveApiKeyButton");
 const clearApiKeyButton = document.getElementById("clearApiKeyButton");
 const closeSettingsButton = document.getElementById("closeSettingsButton");
+const testConnectionButton = document.getElementById("testConnectionButton");
+const testResult = document.getElementById("testResult");
 
 let currentLang = "hi-IN";
 let conversations = loadConversations();
@@ -42,6 +49,14 @@ function loadUserApiKey() {
 
 function loadUserProvider() {
   return localStorage.getItem(USER_PROVIDER_STORAGE) || "gemini";
+}
+
+function loadUserModel() {
+  return localStorage.getItem(USER_MODEL_STORAGE) || "";
+}
+
+function loadCustomEndpoint() {
+  return localStorage.getItem(USER_CUSTOM_ENDPOINT_STORAGE) || "";
 }
 
 function renderMessages() {
@@ -87,7 +102,9 @@ async function handleSubmit(event) {
       body: JSON.stringify({
         messages: conv.messages,
         userApiKey: loadUserApiKey(),
-        userProvider: loadUserProvider()
+        userProvider: loadUserProvider(),
+        userModel: loadUserModel(),
+        customEndpoint: loadCustomEndpoint()
       })
     });
     const data = await response.json();
@@ -117,10 +134,24 @@ function startNewChat() {
 messageForm.addEventListener("submit", handleSubmit);
 document.getElementById("newChatButton").addEventListener("click", startNewChat);
 
-// ---- Settings / User's own API key + Provider ----
+// ---- Settings: Provider, Key, Model, Custom Endpoint ----
+function updateCustomFieldVisibility() {
+  if (providerSelect.value === "custom") {
+    customFields.classList.remove("hidden");
+  } else {
+    customFields.classList.add("hidden");
+  }
+}
+
+providerSelect.addEventListener("change", updateCustomFieldVisibility);
+
 settingsButton.addEventListener('click', () => {
   apiKeyInput.value = loadUserApiKey();
   providerSelect.value = loadUserProvider();
+  modelInput.value = loadUserModel();
+  customEndpointInput.value = loadCustomEndpoint();
+  updateCustomFieldVisibility();
+  testResult.innerText = "";
   settingsPanel.classList.remove("hidden");
 });
 
@@ -131,18 +162,65 @@ closeSettingsButton.addEventListener('click', () => {
 saveApiKeyButton.addEventListener('click', () => {
   const key = apiKeyInput.value.trim();
   const provider = providerSelect.value;
+  const model = modelInput.value.trim();
+  const customEndpoint = customEndpointInput.value.trim();
+
   localStorage.setItem(USER_PROVIDER_STORAGE, provider);
+  localStorage.setItem(USER_MODEL_STORAGE, model);
+  localStorage.setItem(USER_CUSTOM_ENDPOINT_STORAGE, customEndpoint);
+
   if (key) {
     localStorage.setItem(USER_API_KEY_STORAGE, key);
-    voiceStatus.innerText = "Aapki API key save ho gayi";
   }
+  voiceStatus.innerText = "Settings save ho gayi";
   settingsPanel.classList.add("hidden");
 });
 
 clearApiKeyButton.addEventListener('click', () => {
   localStorage.removeItem(USER_API_KEY_STORAGE);
+  localStorage.removeItem(USER_MODEL_STORAGE);
+  localStorage.removeItem(USER_CUSTOM_ENDPOINT_STORAGE);
   apiKeyInput.value = "";
-  voiceStatus.innerText = "Default key use hogi";
+  modelInput.value = "";
+  customEndpointInput.value = "";
+  voiceStatus.innerText = "Default settings use hongi";
+});
+
+// ---- Test Connection ----
+testConnectionButton.addEventListener('click', async () => {
+  testResult.innerText = "Test ho raha hai...";
+  testResult.className = "test-result testing";
+
+  const key = apiKeyInput.value.trim();
+  const provider = providerSelect.value;
+  const model = modelInput.value.trim();
+  const customEndpoint = customEndpointInput.value.trim();
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "Sirf 'OK' likh kar reply karo, kuch aur mat likho." }],
+        userApiKey: key,
+        userProvider: provider,
+        userModel: model,
+        customEndpoint: customEndpoint
+      })
+    });
+    const data = await response.json();
+
+    if (data.error) {
+      testResult.innerText = "❌ Kaam nahi kar raha: " + data.error;
+      testResult.className = "test-result fail";
+    } else {
+      testResult.innerText = "✅ Kaam kar raha hai! Jawab mila: " + data.content;
+      testResult.className = "test-result pass";
+    }
+  } catch (err) {
+    testResult.innerText = "❌ Connection fail: " + err.message;
+    testResult.className = "test-result fail";
+  }
 });
 
 // ---- Voice Input (Toggle On/Off, Always Listening while ON) ----
