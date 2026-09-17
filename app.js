@@ -57,6 +57,11 @@ async function handleSubmit(event) {
   loadingIndicator.classList.remove("hidden");
   voiceStatus.innerText = "JARVIS is thinking...";
 
+  // Jawab aane tak sunna band rakhein taaki khud ki awaaz na sune
+  if (recognition && isListening) {
+    recognition.stop();
+  }
+
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -68,10 +73,11 @@ async function handleSubmit(event) {
 
     conv.messages.push({ role: "assistant", content: data.content });
     speakText(data.content);
-    voiceStatus.innerText = "JARVIS Online";
   } catch (err) {
     conv.messages.push({ role: "assistant", content: "Error: " + err.message });
     voiceStatus.innerText = "Connection Error";
+    // Error ke baad bhi agar mic on tha to fir se sunna shuru kar dein
+    if (isListening) startRecognition();
   } finally {
     loadingIndicator.classList.add("hidden");
     saveConversations();
@@ -91,35 +97,62 @@ function startNewChat() {
 messageForm.addEventListener("submit", handleSubmit);
 document.getElementById("newChatButton").addEventListener("click", startNewChat);
 
-// ---- Voice Input (Speech to Text) ----
+// ---- Voice Input (Toggle On/Off, Always Listening while ON) ----
 let recognition;
+let isListening = false;
+
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
   recognition.lang = 'hi-IN';
   recognition.interimResults = false;
-  recognition.continuous = false;
+  recognition.continuous = true;
 
   recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    messageInput.value = transcript;
+    const lastResult = event.results[event.results.length - 1];
+    const transcript = lastResult[0].transcript.trim();
+    if (transcript) {
+      messageInput.value = transcript;
+      messageForm.requestSubmit();
+    }
   };
 
   recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error);
-    voiceStatus.innerText = "Voice error, try again";
   };
 
-  recognition.onstart = () => { voiceStatus.innerText = "Listening..."; };
-  recognition.onend = () => { voiceStatus.innerText = "JARVIS Online"; };
+  recognition.onend = () => {
+    // Agar user ne mic ON rakha hai lekin browser ne khud rok diya, to fir se start karo
+    if (isListening) {
+      try { recognition.start(); } catch (e) {}
+    }
+  };
 
-  if (micButton) {
-    micButton.addEventListener('click', () => {
-      recognition.start();
-    });
+  function startRecognition() {
+    isListening = true;
+    micButton.classList.add("mic-active");
+    voiceStatus.innerText = "JARVIS is listening...";
+    try { recognition.start(); } catch (e) {}
   }
+
+  function stopRecognition() {
+    isListening = false;
+    micButton.classList.remove("mic-active");
+    voiceStatus.innerText = "Mic is off";
+    recognition.stop();
+  }
+
+  micButton.addEventListener('click', () => {
+    if (isListening) {
+      stopRecognition();
+    } else {
+      startRecognition();
+    }
+  });
+
 } else {
   console.warn('Speech recognition not supported in this browser.');
+  micButton.disabled = true;
 }
 
 // ---- Voice Output (Text to Speech) ----
@@ -130,6 +163,15 @@ function speakText(text) {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'hi-IN';
     utterance.rate = 1;
+    utterance.onend = () => {
+      // Bolna khatam hote hi, agar mic user ne ON rakha tha to fir se sunna shuru
+      if (isListening) {
+        try { recognition.start(); } catch (e) {}
+        voiceStatus.innerText = "JARVIS is listening...";
+      } else {
+        voiceStatus.innerText = "Mic is off";
+      }
+    };
     window.speechSynthesis.speak(utterance);
   }
 }
