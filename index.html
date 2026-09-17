@@ -67,14 +67,25 @@
           </div>
         </div>
 
-        <button
-          id="newChatButton"
-          class="icon-button"
-          type="button"
-          aria-label="Create new chat"
-        >
-          ＋
-        </button>
+        <div class="topbar-actions">
+          <button
+            id="settingsButton"
+            class="icon-button"
+            type="button"
+            aria-label="Settings"
+          >
+            ⚙
+          </button>
+
+          <button
+            id="newChatButton"
+            class="icon-button"
+            type="button"
+            aria-label="Create new chat"
+          >
+            ＋
+          </button>
+        </div>
       </header>
 
       <section
@@ -97,17 +108,15 @@
         </p>
 
         <form id="messageForm" class="composer">
+          <button
+            id="langToggleButton"
+            class="composer-button"
+            type="button"
+            aria-label="Toggle language"
+          >
+            हिं
+          </button>
 
-           <button
-  id="langToggleButton"
-  class="composer-button"
-  type="button"
-  aria-label="Toggle language"
->
-  हिं
-</button>
-
-         
           <button
             id="micButton"
             class="composer-button"
@@ -137,6 +146,39 @@
       </footer>
 
     </main>
+  </div>
+
+  <div id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-box">
+      <h3>Settings</h3>
+      <p class="small-label">Provider चुनें और अपनी API Key डालें (optional)</p>
+
+      <select id="providerSelect">
+        <option value="gemini">Google Gemini</option>
+        <option value="openai">OpenAI (ChatGPT)</option>
+        <option value="groq">Groq</option>
+        <option value="openrouter">OpenRouter</option>
+      </select>
+
+      <input
+        id="apiKeyInput"
+        type="text"
+        placeholder="अपनी API key यहाँ paste करें"
+      />
+
+      <p class="settings-note">
+        Key नहीं दी तो default key इस्तेमाल होगी।<br>
+        Gemini: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a><br>
+        Groq: <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a><br>
+        OpenRouter: <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a>
+      </p>
+
+      <div class="settings-buttons">
+        <button id="saveApiKeyButton" class="primary-button" type="button">Save</button>
+        <button id="clearApiKeyButton" class="icon-button" type="button">Remove Key</button>
+        <button id="closeSettingsButton" class="icon-button" type="button">Close</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
