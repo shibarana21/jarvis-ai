@@ -11,6 +11,11 @@
   --shadow: 0 0 24px rgba(66, 221, 255, 0.12);
 }
 
+#langToggleButton {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
 * {
   box-sizing: border-box;
 }
