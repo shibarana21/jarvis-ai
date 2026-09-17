@@ -1,4 +1,7 @@
 const STORAGE_KEY = "jarvis_conversations_v1";
+const USER_API_KEY_STORAGE = "jarvis_user_api_key";
+const USER_PROVIDER_STORAGE = "jarvis_user_provider";
+
 const messagesElement = document.getElementById("messages");
 const chatListElement = document.getElementById("chatList");
 const messageForm = document.getElementById("messageForm");
@@ -9,6 +12,14 @@ const sidebarOverlay = document.getElementById("sidebarOverlay");
 const voiceStatus = document.getElementById("voiceStatus");
 const micButton = document.getElementById("micButton");
 const langToggleButton = document.getElementById("langToggleButton");
+
+const settingsButton = document.getElementById("settingsButton");
+const settingsPanel = document.getElementById("settingsPanel");
+const apiKeyInput = document.getElementById("apiKeyInput");
+const providerSelect = document.getElementById("providerSelect");
+const saveApiKeyButton = document.getElementById("saveApiKeyButton");
+const clearApiKeyButton = document.getElementById("clearApiKeyButton");
+const closeSettingsButton = document.getElementById("closeSettingsButton");
 
 let currentLang = "hi-IN";
 let conversations = loadConversations();
@@ -23,6 +34,14 @@ function loadConversations() {
 
 function saveConversations() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+}
+
+function loadUserApiKey() {
+  return localStorage.getItem(USER_API_KEY_STORAGE) || "";
+}
+
+function loadUserProvider() {
+  return localStorage.getItem(USER_PROVIDER_STORAGE) || "gemini";
 }
 
 function renderMessages() {
@@ -65,7 +84,11 @@ async function handleSubmit(event) {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: conv.messages })
+      body: JSON.stringify({
+        messages: conv.messages,
+        userApiKey: loadUserApiKey(),
+        userProvider: loadUserProvider()
+      })
     });
     const data = await response.json();
     if (data.error) throw new Error(data.error);
@@ -93,6 +116,34 @@ function startNewChat() {
 
 messageForm.addEventListener("submit", handleSubmit);
 document.getElementById("newChatButton").addEventListener("click", startNewChat);
+
+// ---- Settings / User's own API key + Provider ----
+settingsButton.addEventListener('click', () => {
+  apiKeyInput.value = loadUserApiKey();
+  providerSelect.value = loadUserProvider();
+  settingsPanel.classList.remove("hidden");
+});
+
+closeSettingsButton.addEventListener('click', () => {
+  settingsPanel.classList.add("hidden");
+});
+
+saveApiKeyButton.addEventListener('click', () => {
+  const key = apiKeyInput.value.trim();
+  const provider = providerSelect.value;
+  localStorage.setItem(USER_PROVIDER_STORAGE, provider);
+  if (key) {
+    localStorage.setItem(USER_API_KEY_STORAGE, key);
+    voiceStatus.innerText = "Aapki API key save ho gayi";
+  }
+  settingsPanel.classList.add("hidden");
+});
+
+clearApiKeyButton.addEventListener('click', () => {
+  localStorage.removeItem(USER_API_KEY_STORAGE);
+  apiKeyInput.value = "";
+  voiceStatus.innerText = "Default key use hogi";
+});
 
 // ---- Voice Input (Toggle On/Off, Always Listening while ON) ----
 let recognition;
@@ -194,14 +245,57 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   function resumeRecognitionAfterSpeaking() {}
 }
 
-// ---- Voice Output (Text to Speech) ----
+// ---- Voice Output (Text to Speech) - Best available voice chuno ----
+let availableVoices = [];
+
+function loadVoices() {
+  availableVoices = window.speechSynthesis.getVoices();
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function pickBestVoice(langCode) {
+  if (!availableVoices || availableVoices.length === 0) return null;
+
+  // langCode jaise "hi-IN" ya "en-IN" ke exact match dhoondo
+  let matches = availableVoices.filter(v => v.lang === langCode);
+
+  // Agar exact match nahi mila, to language ka base match dhoondo (jaise "hi")
+  if (matches.length === 0) {
+    const baseLang = langCode.split('-')[0];
+    matches = availableVoices.filter(v => v.lang.startsWith(baseLang));
+  }
+
+  if (matches.length === 0) return null;
+
+  // Google/Natural/Premium jaisi behtar quality wali voice ko priority do
+  const preferredKeywords = ["Google", "Natural", "Premium", "Neural", "Wavenet"];
+  for (const keyword of preferredKeywords) {
+    const found = matches.find(v => v.name.includes(keyword));
+    if (found) return found;
+  }
+
+  // Kuch na mile to jo bhi pehli match mili wahi use karo
+  return matches[0];
+}
+
 function speakText(text) {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
     const cleanText = text.replace(/<[^>]*>/g, "");
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = currentLang;
+
+    const bestVoice = pickBestVoice(currentLang);
+    if (bestVoice) {
+      utterance.voice = bestVoice;
+    }
+
     utterance.rate = 1;
+    utterance.pitch = 1;
 
     isSpeaking = true;
 
