@@ -8,7 +8,9 @@ const sidebar = document.getElementById("sidebar");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
 const voiceStatus = document.getElementById("voiceStatus");
 const micButton = document.getElementById("micButton");
+const langToggleButton = document.getElementById("langToggleButton");
 
+let currentLang = "hi-IN";
 let conversations = loadConversations();
 let activeConversationId = null;
 
@@ -57,7 +59,6 @@ async function handleSubmit(event) {
   loadingIndicator.classList.remove("hidden");
   voiceStatus.innerText = "JARVIS is thinking...";
 
-  // JARVIS jawab bhejne se pehle mic turant aur pakka band karein
   pauseRecognitionForSpeaking();
 
   try {
@@ -82,7 +83,6 @@ async function handleSubmit(event) {
   }
 }
 
-// Basic Setup
 function startNewChat() {
   const id = Date.now().toString();
   conversations.unshift({ id, title: "New Chat", messages: [] });
@@ -96,20 +96,18 @@ document.getElementById("newChatButton").addEventListener("click", startNewChat)
 
 // ---- Voice Input (Toggle On/Off, Always Listening while ON) ----
 let recognition;
-let isListening = false;   // user ne mic ON kiya hai ya nahi
-let isSpeaking = false;    // JARVIS abhi bol raha hai ya nahi
+let isListening = false;
+let isSpeaking = false;
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
-  recognition.lang = 'hi-IN';
+  recognition.lang = currentLang;
   recognition.interimResults = false;
   recognition.continuous = true;
 
   recognition.onresult = (event) => {
-    // Safety check: agar JARVIS bol raha hai to is result ko bilkul ignore karo
     if (isSpeaking) return;
-
     const lastResult = event.results[event.results.length - 1];
     const transcript = lastResult[0].transcript.trim();
     if (transcript) {
@@ -123,7 +121,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   };
 
   recognition.onend = () => {
-    // Sirf tabhi dobara start karo jab mic ON ho AUR JARVIS bol na raha ho
     if (isListening && !isSpeaking) {
       try { recognition.start(); } catch (e) {}
     }
@@ -143,14 +140,12 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     try { recognition.abort(); } catch (e) {}
   }
 
-  // JARVIS bolne se pehle mic turant, pakka band karo
   function pauseRecognitionForSpeaking() {
     if (recognition) {
       try { recognition.abort(); } catch (e) {}
     }
   }
 
-  // JARVIS ka bolna khatam hone ke thodi der baad mic wapas on karo
   function resumeRecognitionAfterSpeaking() {
     if (isListening) {
       setTimeout(() => {
@@ -158,11 +153,31 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
           try { recognition.start(); } catch (e) {}
           voiceStatus.innerText = "JARVIS is listening...";
         }
-      }, 600); // echo khatam hone ke liye thodi delay
+      }, 600);
     } else {
       voiceStatus.innerText = "Mic is off";
     }
   }
+
+  function toggleLanguage() {
+    if (currentLang === "hi-IN") {
+      currentLang = "en-IN";
+      langToggleButton.innerText = "EN";
+    } else {
+      currentLang = "hi-IN";
+      langToggleButton.innerText = "हिं";
+    }
+    recognition.lang = currentLang;
+
+    if (isListening) {
+      try { recognition.abort(); } catch (e) {}
+      setTimeout(() => {
+        try { recognition.start(); } catch (e) {}
+      }, 300);
+    }
+  }
+
+  langToggleButton.addEventListener('click', toggleLanguage);
 
   micButton.addEventListener('click', () => {
     if (isListening) {
@@ -185,10 +200,10 @@ function speakText(text) {
     window.speechSynthesis.cancel();
     const cleanText = text.replace(/<[^>]*>/g, "");
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'hi-IN';
+    utterance.lang = currentLang;
     utterance.rate = 1;
 
-    isSpeaking = true; // bolna shuru, mic band rakhein
+    isSpeaking = true;
 
     utterance.onend = () => {
       isSpeaking = false;
