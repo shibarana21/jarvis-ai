@@ -455,3 +455,9 @@ button {
     left: 310px;
   }
 }
+
+ .mic-active {
+  background-color: #00e0c6;
+  box-shadow: 0 0 12px #00e0c6;
+  color: #000;
+}
