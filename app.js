@@ -260,10 +260,8 @@ if ('speechSynthesis' in window) {
 function pickBestVoice(langCode) {
   if (!availableVoices || availableVoices.length === 0) return null;
 
-  // langCode jaise "hi-IN" ya "en-IN" ke exact match dhoondo
   let matches = availableVoices.filter(v => v.lang === langCode);
 
-  // Agar exact match nahi mila, to language ka base match dhoondo (jaise "hi")
   if (matches.length === 0) {
     const baseLang = langCode.split('-')[0];
     matches = availableVoices.filter(v => v.lang.startsWith(baseLang));
@@ -271,14 +269,12 @@ function pickBestVoice(langCode) {
 
   if (matches.length === 0) return null;
 
-  // Google/Natural/Premium jaisi behtar quality wali voice ko priority do
   const preferredKeywords = ["Google", "Natural", "Premium", "Neural", "Wavenet"];
   for (const keyword of preferredKeywords) {
     const found = matches.find(v => v.name.includes(keyword));
     if (found) return found;
   }
 
-  // Kuch na mile to jo bhi pehli match mili wahi use karo
   return matches[0];
 }
 
