@@ -57,10 +57,8 @@ async function handleSubmit(event) {
   loadingIndicator.classList.remove("hidden");
   voiceStatus.innerText = "JARVIS is thinking...";
 
-  // JARVIS jawab dete waqt mic ko band rakhein taaki khud ki awaaz na sune
-  if (recognition && isListening) {
-    recognition.stop();
-  }
+  // JARVIS jawab bhejne se pehle mic turant aur pakka band karein
+  pauseRecognitionForSpeaking();
 
   try {
     const response = await fetch('/api/chat', {
@@ -76,10 +74,7 @@ async function handleSubmit(event) {
   } catch (err) {
     conv.messages.push({ role: "assistant", content: "Error: " + err.message });
     voiceStatus.innerText = "Connection Error";
-    // Error ke baad bhi agar mic ON tha to fir se sunna shuru kar dein
-    if (isListening) {
-      try { recognition.start(); } catch (e) {}
-    }
+    resumeRecognitionAfterSpeaking();
   } finally {
     loadingIndicator.classList.add("hidden");
     saveConversations();
@@ -101,8 +96,8 @@ document.getElementById("newChatButton").addEventListener("click", startNewChat)
 
 // ---- Voice Input (Toggle On/Off, Always Listening while ON) ----
 let recognition;
-let isListening = false;
-let isSpeaking = false; // JARVIS jab bol raha ho tab true rahega
+let isListening = false;   // user ne mic ON kiya hai ya nahi
+let isSpeaking = false;    // JARVIS abhi bol raha hai ya nahi
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -112,6 +107,9 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   recognition.continuous = true;
 
   recognition.onresult = (event) => {
+    // Safety check: agar JARVIS bol raha hai to is result ko bilkul ignore karo
+    if (isSpeaking) return;
+
     const lastResult = event.results[event.results.length - 1];
     const transcript = lastResult[0].transcript.trim();
     if (transcript) {
@@ -142,7 +140,28 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     isListening = false;
     micButton.classList.remove("mic-active");
     voiceStatus.innerText = "Mic is off";
-    recognition.stop();
+    try { recognition.abort(); } catch (e) {}
+  }
+
+  // JARVIS bolne se pehle mic turant, pakka band karo
+  function pauseRecognitionForSpeaking() {
+    if (recognition) {
+      try { recognition.abort(); } catch (e) {}
+    }
+  }
+
+  // JARVIS ka bolna khatam hone ke thodi der baad mic wapas on karo
+  function resumeRecognitionAfterSpeaking() {
+    if (isListening) {
+      setTimeout(() => {
+        if (isListening && !isSpeaking) {
+          try { recognition.start(); } catch (e) {}
+          voiceStatus.innerText = "JARVIS is listening...";
+        }
+      }, 600); // echo khatam hone ke liye thodi delay
+    } else {
+      voiceStatus.innerText = "Mic is off";
+    }
   }
 
   micButton.addEventListener('click', () => {
@@ -156,6 +175,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 } else {
   console.warn('Speech recognition not supported in this browser.');
   micButton.disabled = true;
+  function pauseRecognitionForSpeaking() {}
+  function resumeRecognitionAfterSpeaking() {}
 }
 
 // ---- Voice Output (Text to Speech) ----
@@ -170,20 +191,13 @@ function speakText(text) {
     isSpeaking = true; // bolna shuru, mic band rakhein
 
     utterance.onend = () => {
-      isSpeaking = false; // bolna khatam
-      if (isListening) {
-        try { recognition.start(); } catch (e) {}
-        voiceStatus.innerText = "JARVIS is listening...";
-      } else {
-        voiceStatus.innerText = "Mic is off";
-      }
+      isSpeaking = false;
+      resumeRecognitionAfterSpeaking();
     };
 
     utterance.onerror = () => {
       isSpeaking = false;
-      if (isListening) {
-        try { recognition.start(); } catch (e) {}
-      }
+      resumeRecognitionAfterSpeaking();
     };
 
     window.speechSynthesis.speak(utterance);
