@@ -7,6 +7,7 @@ const loadingIndicator = document.getElementById("loadingIndicator");
 const sidebar = document.getElementById("sidebar");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
 const voiceStatus = document.getElementById("voiceStatus");
+const micButton = document.getElementById("micButton");
 
 let conversations = loadConversations();
 let activeConversationId = null;
@@ -52,7 +53,7 @@ async function handleSubmit(event) {
   conv.messages.push({ role: "user", content });
   messageInput.value = "";
   renderMessages();
-  
+
   loadingIndicator.classList.remove("hidden");
   voiceStatus.innerText = "JARVIS is thinking...";
 
@@ -64,8 +65,9 @@ async function handleSubmit(event) {
     });
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    
+
     conv.messages.push({ role: "assistant", content: data.content });
+    speakText(data.content);
     voiceStatus.innerText = "JARVIS Online";
   } catch (err) {
     conv.messages.push({ role: "assistant", content: "Error: " + err.message });
@@ -88,6 +90,49 @@ function startNewChat() {
 
 messageForm.addEventListener("submit", handleSubmit);
 document.getElementById("newChatButton").addEventListener("click", startNewChat);
+
+// ---- Voice Input (Speech to Text) ----
+let recognition;
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'hi-IN';
+  recognition.interimResults = false;
+  recognition.continuous = false;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    messageInput.value = transcript;
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    voiceStatus.innerText = "Voice error, try again";
+  };
+
+  recognition.onstart = () => { voiceStatus.innerText = "Listening..."; };
+  recognition.onend = () => { voiceStatus.innerText = "JARVIS Online"; };
+
+  if (micButton) {
+    micButton.addEventListener('click', () => {
+      recognition.start();
+    });
+  }
+} else {
+  console.warn('Speech recognition not supported in this browser.');
+}
+
+// ---- Voice Output (Text to Speech) ----
+function speakText(text) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const cleanText = text.replace(/<[^>]*>/g, "");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'hi-IN';
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+}
 
 // Initialize
 if (conversations.length === 0) startNewChat();
