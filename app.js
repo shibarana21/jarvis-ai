@@ -57,7 +57,7 @@ async function handleSubmit(event) {
   loadingIndicator.classList.remove("hidden");
   voiceStatus.innerText = "JARVIS is thinking...";
 
-  // Jawab aane tak sunna band rakhein taaki khud ki awaaz na sune
+  // JARVIS jawab dete waqt mic ko band rakhein taaki khud ki awaaz na sune
   if (recognition && isListening) {
     recognition.stop();
   }
@@ -76,8 +76,10 @@ async function handleSubmit(event) {
   } catch (err) {
     conv.messages.push({ role: "assistant", content: "Error: " + err.message });
     voiceStatus.innerText = "Connection Error";
-    // Error ke baad bhi agar mic on tha to fir se sunna shuru kar dein
-    if (isListening) startRecognition();
+    // Error ke baad bhi agar mic ON tha to fir se sunna shuru kar dein
+    if (isListening) {
+      try { recognition.start(); } catch (e) {}
+    }
   } finally {
     loadingIndicator.classList.add("hidden");
     saveConversations();
@@ -100,6 +102,7 @@ document.getElementById("newChatButton").addEventListener("click", startNewChat)
 // ---- Voice Input (Toggle On/Off, Always Listening while ON) ----
 let recognition;
 let isListening = false;
+let isSpeaking = false; // JARVIS jab bol raha ho tab true rahega
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -122,8 +125,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   };
 
   recognition.onend = () => {
-    // Agar user ne mic ON rakha hai lekin browser ne khud rok diya, to fir se start karo
-    if (isListening) {
+    // Sirf tabhi dobara start karo jab mic ON ho AUR JARVIS bol na raha ho
+    if (isListening && !isSpeaking) {
       try { recognition.start(); } catch (e) {}
     }
   };
@@ -163,8 +166,11 @@ function speakText(text) {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'hi-IN';
     utterance.rate = 1;
+
+    isSpeaking = true; // bolna shuru, mic band rakhein
+
     utterance.onend = () => {
-      // Bolna khatam hote hi, agar mic user ne ON rakha tha to fir se sunna shuru
+      isSpeaking = false; // bolna khatam
       if (isListening) {
         try { recognition.start(); } catch (e) {}
         voiceStatus.innerText = "JARVIS is listening...";
@@ -172,6 +178,14 @@ function speakText(text) {
         voiceStatus.innerText = "Mic is off";
       }
     };
+
+    utterance.onerror = () => {
+      isSpeaking = false;
+      if (isListening) {
+        try { recognition.start(); } catch (e) {}
+      }
+    };
+
     window.speechSynthesis.speak(utterance);
   }
 }
