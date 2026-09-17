@@ -151,33 +151,59 @@
   <div id="settingsPanel" class="settings-panel hidden">
     <div class="settings-box">
       <h3>Settings</h3>
-      <p class="small-label">Provider चुनें और अपनी API Key डालें (optional)</p>
+      <p class="small-label">Provider चुनें</p>
 
       <select id="providerSelect">
         <option value="gemini">Google Gemini</option>
         <option value="openai">OpenAI (ChatGPT)</option>
         <option value="groq">Groq</option>
         <option value="openrouter">OpenRouter</option>
+        <option value="custom">Custom (कोई भी OpenAI-compatible API)</option>
       </select>
 
+      <div id="customFields" class="hidden">
+        <p class="small-label">Custom API Endpoint URL</p>
+        <input
+          id="customEndpointInput"
+          type="text"
+          placeholder="जैसे: https://api.example.com/v1/chat/completions"
+        />
+      </div>
+
+      <p class="small-label">API Key</p>
       <input
         id="apiKeyInput"
         type="text"
         placeholder="अपनी API key यहाँ paste करें"
       />
 
+      <p class="small-label">Model Name</p>
+      <input
+        id="modelInput"
+        type="text"
+        placeholder="जैसे: gemini-3.6-flash"
+      />
+
       <p class="settings-note">
-        Key नहीं दी तो default key इस्तेमाल होगी।<br>
-        Gemini: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a><br>
-        Groq: <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a><br>
-        OpenRouter: <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a>
+        Key/Model नहीं दिया तो default इस्तेमाल होगा।<br>
+        Gemini: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> |
+        Model list: <a href="https://ai.google.dev/gemini-api/docs/models" target="_blank">देखें</a><br>
+        Groq: <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a> |
+        Model list: <a href="https://console.groq.com/docs/models" target="_blank">देखें</a><br>
+        OpenRouter: <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai</a> |
+        Model list: <a href="https://openrouter.ai/models" target="_blank">देखें</a>
       </p>
 
       <div class="settings-buttons">
         <button id="saveApiKeyButton" class="primary-button" type="button">Save</button>
+        <button id="testConnectionButton" class="primary-button" type="button">Test Connection</button>
+      </div>
+      <div class="settings-buttons">
         <button id="clearApiKeyButton" class="icon-button" type="button">Remove Key</button>
         <button id="closeSettingsButton" class="icon-button" type="button">Close</button>
       </div>
+
+      <p id="testResult" class="test-result"></p>
     </div>
   </div>
 
