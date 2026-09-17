@@ -466,3 +466,66 @@ button {
   box-shadow: 0 0 12px #00e0c6;
   color: #000;
 }
+
+/* Settings Panel */
+.settings-panel {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.settings-panel.hidden { display: none; }
+.settings-box {
+  background: #0b1420;
+  border: 1px solid #1d3245;
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 400px;
+}
+.settings-box input,
+.settings-box select {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid #1d3245;
+  background: #050b14;
+  color: #fff;
+}
+.settings-note {
+  font-size: 0.8rem;
+  color: #8aa0b3;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.settings-note a {
+  color: #00e0c6;
+}
+.settings-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Topbar actions grouping */
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Mic active state */
+.mic-active {
+  background-color: #00e0c6;
+  box-shadow: 0 0 12px #00e0c6;
+  color: #000;
+}
+
+/* Language toggle button */
+#langToggleButton {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
